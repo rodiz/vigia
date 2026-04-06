@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  vigia:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./data/vigia.db
+      - DATA_DIR=/app/data
+    devices:
+      # Uncomment to pass webcam to container
+      # - /dev/video0:/dev/video0
+      - /dev/dri:/dev/dri
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
