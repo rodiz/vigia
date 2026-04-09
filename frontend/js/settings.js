@@ -185,17 +185,34 @@ const SettingsPage = (() => {
         <!-- System Info -->
         <div class="col-12 col-lg-6">
           <div class="card bg-dark border-secondary">
-            <div class="card-header border-secondary">
-              <i class="bi bi-info-circle me-2 text-secondary"></i>
-              <span class="fw-semibold">Información del Sistema</span>
+            <div class="card-header border-secondary d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-info-circle me-2 text-secondary"></i><span class="fw-semibold">Información del Sistema</span></span>
+              <button class="btn btn-sm btn-outline-secondary" id="btnRefreshSysInfo" title="Actualizar">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
             </div>
             <div class="card-body">
               <table class="table table-dark table-sm mb-0">
                 <tbody>
                   <tr><td class="text-muted">Aplicación</td><td>VigIA v1.0.0</td></tr>
                   <tr><td class="text-muted">Backend</td><td>FastAPI + SQLite</td></tr>
-                  <tr><td class="text-muted">Facial</td><td>face_recognition (dlib)</td></tr>
-                  <tr><td class="text-muted">Detección</td><td>YOLOv8n (ultralytics)</td></tr>
+                  <tr>
+                    <td class="text-muted">Motor biométrico</td>
+                    <td id="sysEngineCell"><span class="spinner-border spinner-border-sm text-secondary"></span></td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Embedding dim</td>
+                    <td id="sysEmbeddingDim">—</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Caras registradas</td>
+                    <td id="sysKnownFaces">—</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Umbral activo</td>
+                    <td id="sysThreshold">—</td>
+                  </tr>
+                  <tr><td class="text-muted">Detección objetos</td><td>YOLOv8n (ultralytics)</td></tr>
                   <tr><td class="text-muted">Zona horaria</td><td>America/Bogota</td></tr>
                 </tbody>
               </table>
@@ -260,6 +277,7 @@ const SettingsPage = (() => {
     setupListeners();
     loadSettings();
     loadCameras();
+    loadSystemInfo();
   }
 
   let editingCameraId = null;
@@ -425,6 +443,9 @@ const SettingsPage = (() => {
         btn.innerHTML = '<i class="bi bi-wifi me-1"></i>Probar URL';
       }
     });
+
+    // System info refresh
+    document.getElementById('btnRefreshSysInfo')?.addEventListener('click', loadSystemInfo);
 
     // Password
     document.getElementById('btnChangePassword').addEventListener('click', changePassword);
@@ -603,6 +624,40 @@ const SettingsPage = (() => {
         weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit',
       });
+  }
+
+  async function loadSystemInfo() {
+    try {
+      const info = await Api.get('/settings/system-info');
+      const engineCell = document.getElementById('sysEngineCell');
+      if (!engineCell) return;
+
+      const isInsightFace = info.face_engine_type === 'insightface';
+      const color   = isInsightFace ? 'success' : 'info';
+      const icon    = isInsightFace ? 'bi-stars' : 'bi-cpu';
+      const label   = isInsightFace ? 'InsightFace (ArcFace)' : 'dlib (face_recognition)';
+      const avail   = info.engine_available
+        ? '<span class="badge bg-success ms-1">activo</span>'
+        : '<span class="badge bg-danger ms-1">no disponible</span>';
+
+      engineCell.innerHTML = `
+        <span class="text-${color}">
+          <i class="bi ${icon} me-1"></i>${label}
+        </span>${avail}`;
+
+      const dimEl = document.getElementById('sysEmbeddingDim');
+      if (dimEl) dimEl.textContent = `${info.embedding_dim} dims`;
+
+      const facesEl = document.getElementById('sysKnownFaces');
+      if (facesEl) facesEl.textContent = info.known_faces;
+
+      const thrEl = document.getElementById('sysThreshold');
+      if (thrEl) thrEl.textContent = `${Math.round(info.confidence_threshold * 100)}%`;
+
+    } catch (e) {
+      const cell = document.getElementById('sysEngineCell');
+      if (cell) cell.innerHTML = '<span class="text-danger small">Error cargando</span>';
+    }
   }
 
   return { render, openEditCamera, deleteCamera, testCameraStream };

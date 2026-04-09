@@ -14,6 +14,23 @@ from .. import models, schemas
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 
+@router.get("/system-info")
+def system_info(_=Depends(get_current_user)):
+    """Retorna información del sistema incluyendo el motor biométrico activo."""
+    from ..biometrics.factory import get_engine
+    from ..core.settings import settings
+    from ..services.face_registry_service import face_registry_service
+    engine = get_engine()
+    return {
+        "face_engine":        engine.model_name,
+        "face_engine_type":   settings.face_engine,
+        "embedding_dim":      engine.embedding_dim,
+        "engine_available":   engine.is_available(),
+        "known_faces":        face_registry_service.count,
+        "confidence_threshold": settings.face_confidence_threshold,
+    }
+
+
 def _get_or_create_config(db: Session, key: str, default: str = "") -> models.SystemConfig:
     cfg = db.query(models.SystemConfig).filter(models.SystemConfig.key == key).first()
     if not cfg:
