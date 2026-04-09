@@ -27,6 +27,17 @@ Rendimiento por plataforma (documentativo):
 """
 
 import os
+from pathlib import Path
+
+# Cargar .env desde la raíz del proyecto antes de leer os.getenv()
+# Esto debe ocurrir antes de que cualquier módulo llame os.getenv()
+_env_file = Path(__file__).resolve().parent.parent.parent.parent / ".env"
+if _env_file.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_file, override=False)
+    except ImportError:
+        pass  # python-dotenv no instalado — las vars deben venir del entorno del proceso
 
 
 class Settings:
