@@ -1,3 +1,4 @@
+# ── Core framework ────────────────────────────────────────────────────────────
 fastapi==0.115.0
 uvicorn[standard]==0.30.0
 sqlalchemy==2.0.35
@@ -5,13 +6,39 @@ alembic==1.13.3
 python-multipart==0.0.12
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
-opencv-python-headless==4.10.0.84
-face-recognition==1.3.0
-ultralytics==8.3.0
-python-telegram-bot==21.6
-pillow==10.4.0
-numpy==1.26.4
 python-dotenv==1.0.1
+pydantic-settings==2.5.2
 aiofiles==24.1.0
 websockets==13.1
-pydantic-settings==2.5.2
+
+# ── Computer vision ───────────────────────────────────────────────────────────
+opencv-python-headless==4.10.0.84
+pillow==10.4.0
+numpy==1.26.4
+
+# ── Object detection (YOLO) ───────────────────────────────────────────────────
+# Detecta presencia/objetos — nunca identidad. Ver services/recognition_service.py
+ultralytics==8.3.0
+
+# ── Face recognition: motor legacy (dlib) ────────────────────────────────────
+# Activo cuando FACE_ENGINE=dlib (default)
+# Requiere compilador C++ y dlib. En ARM (Raspberry Pi) puede ser frágil.
+face-recognition==1.3.0
+
+# ── Face recognition: motor nuevo (InsightFace + ONNX Runtime) ───────────────
+# Activo cuando FACE_ENGINE=insightface
+# Instalación: pip install insightface onnxruntime
+# Para GPU:    pip install insightface onnxruntime-gpu
+# Los modelos (buffalo_s, buffalo_l) se descargan en ~/.insightface/models/
+# en el primer uso (~100MB buffalo_s, ~500MB buffalo_l)
+#
+# Recomendaciones por plataforma:
+#   Laptop / mini PC x86:  insightface + onnxruntime, INSIGHTFACE_MODEL=buffalo_l
+#   Raspberry Pi 5:        insightface + onnxruntime, INSIGHTFACE_MODEL=buffalo_s
+#   Tablet como cliente:   el tablet solo muestra el stream (no necesita insightface)
+#
+insightface>=0.7.3
+onnxruntime>=1.16.0
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+python-telegram-bot==21.6
