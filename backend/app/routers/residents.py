@@ -111,8 +111,8 @@ async def upload_face(
     _ensure_faces_dir()
     contents = await file.read()
 
-    encoding = recognition_service.encode_face_from_image(contents)
-    if encoding is None:
+    face_result = recognition_service.encode_face_with_metadata(contents)
+    if not face_result["detected"] or face_result["encoding"] is None:
         raise HTTPException(
             status_code=422,
             detail="No se detectó ningún rostro en la imagen. Por favor usa una foto clara de frente."
@@ -125,8 +125,12 @@ async def upload_face(
     async with aiofiles.open(photo_path, "wb") as f:
         await f.write(contents)
 
+    import datetime as _dt
     r.foto_path = photo_path
-    r.face_encoding = json.dumps(encoding)
+    r.face_encoding = json.dumps(face_result["encoding"])
+    r.embedding_model = face_result["model_name"]
+    r.embedding_version = None
+    r.embedding_created_at = _dt.datetime.utcnow()
     db.commit()
 
     # Reload known faces

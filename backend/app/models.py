@@ -26,7 +26,13 @@ class Resident(Base):
     telefono = Column(String(20), nullable=True)
     email = Column(String(100), nullable=True)
     foto_path = Column(String(255), nullable=True)
-    face_encoding = Column(Text, nullable=True)  # JSON blob of 128 floats
+    face_encoding = Column(Text, nullable=True)       # JSON blob de floats (128 dlib / 512 InsightFace)
+    # Metadatos del embedding — nullable para compatibilidad con registros legacy
+    # embedding_model: ej "dlib_hog_128" o "insightface_buffalo_s_512"
+    # Registros sin este campo se tratan como dlib (comportamiento conservador)
+    embedding_model = Column(String(64), nullable=True)
+    embedding_version = Column(String(32), nullable=True)  # reservado para futuro versionado
+    embedding_created_at = Column(DateTime, nullable=True)
     activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=func.now())
 
@@ -57,7 +63,11 @@ class Visitor(Base):
     telefono = Column(String(20), nullable=True)
     apartamento_destino = Column(String(20), nullable=True)  # e.g. "514"
     foto_path = Column(String(255), nullable=True)
-    face_encoding = Column(Text, nullable=True)  # JSON blob
+    face_encoding = Column(Text, nullable=True)       # JSON blob de floats
+    # Metadatos del embedding — nullable para compatibilidad con registros legacy
+    embedding_model = Column(String(64), nullable=True)
+    embedding_version = Column(String(32), nullable=True)
+    embedding_created_at = Column(DateTime, nullable=True)
     primera_visita = Column(DateTime, default=func.now())
     ultima_visita = Column(DateTime, default=func.now())
     total_visitas = Column(Integer, default=0)
