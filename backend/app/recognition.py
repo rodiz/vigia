@@ -243,5 +243,30 @@ class RecognitionService:
         self._confidence_threshold = threshold
 
 
-# Singleton
-recognition_service = RecognitionService()
+# ── Compatibility shim ────────────────────────────────────────────────────────
+#
+# Este módulo mantiene su API pública intacta para no romper ningún import
+# existente en main.py, routers/residents.py, routers/visitors.py y
+# routers/settings.py.
+#
+# El singleton `recognition_service` ahora apunta a la nueva implementación
+# en services/recognition_service.py, que es engine-agnostic y soporta
+# tanto dlib como InsightFace según la variable FACE_ENGINE.
+#
+# La clase RecognitionService original permanece aquí (sin cambios) como
+# referencia y fallback. Si por cualquier motivo el nuevo servicio falla
+# al importar, el sistema puede volver a usar la implementación local
+# cambiando la línea de importación de abajo.
+#
+# Para rollback inmediato: comentar el import de abajo y descomentar:
+#   recognition_service = RecognitionService()
+
+try:
+    from .services.recognition_service import recognition_service  # noqa: F401
+except Exception as _shim_error:
+    import logging as _logging
+    _logging.getLogger(__name__).error(
+        f"No se pudo cargar el nuevo RecognitionService: {_shim_error}. "
+        "Usando implementación legacy de recognition.py como fallback."
+    )
+    recognition_service = RecognitionService()
