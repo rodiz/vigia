@@ -2,7 +2,13 @@ import asyncio
 import json
 import logging
 import os
+import warnings
 from datetime import datetime
+
+# Suppress PyTorch NNPACK "Unsupported hardware" C++ log (cosmetic only)
+os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
+os.environ.setdefault("NNPACK_DISABLE", "1")
+warnings.filterwarnings("ignore", message=".*NNPACK.*")
 from pathlib import Path
 from typing import Set
 from zoneinfo import ZoneInfo
@@ -46,6 +52,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Skip ngrok browser warning page on all responses
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class NgrokHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        response.headers["ngrok-skip-browser-warning"] = "1"
+        return response
+
+app.add_middleware(NgrokHeaderMiddleware)
 
 # Include routers
 app.include_router(auth.router)
@@ -139,7 +157,7 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    for cam_id in list(camera_manager.cameras.keys()):
+    for cam_id in list(camera_manager._streams.keys()):
         camera_manager.stop_camera(cam_id)
     logger.info("VigIA shutdown complete")
 

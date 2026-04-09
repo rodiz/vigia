@@ -221,9 +221,14 @@ const SettingsPage = (() => {
                 <div class="mb-3">
                   <label class="form-label">URL / Índice <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" id="camUrl" required
-                         placeholder="rtsp://usuario:pass@192.168.1.10:554/stream  ó  0" />
-                  <div class="form-text">Usa <code>0</code>, <code>1</code>... para webcam local, o URL RTSP completa</div>
+                         placeholder="http://192.168.1.XX:8080/video" />
+                  <div class="form-text">
+                    <strong>IP Webcam (Android):</strong> <code>http://IP:8080/video</code><br>
+                    <strong>RTSP:</strong> <code>rtsp://usuario:pass@IP:554/stream</code><br>
+                    <strong>Webcam local:</strong> <code>0</code>, <code>1</code>...
+                  </div>
                 </div>
+                <div id="camTestResult" class="mb-2"></div>
                 <div class="mb-3">
                   <label class="form-label">Tipo</label>
                   <select class="form-select" id="camTipo">
@@ -240,6 +245,9 @@ const SettingsPage = (() => {
             </div>
             <div class="modal-footer border-secondary">
               <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+              <button class="btn btn-outline-info btn-sm" id="btnTestCamUrl">
+                <i class="bi bi-wifi me-1"></i>Probar URL
+              </button>
               <button class="btn btn-primary" id="btnSaveCamera">
                 <i class="bi bi-check-lg me-1"></i>Guardar
               </button>
@@ -300,14 +308,14 @@ const SettingsPage = (() => {
     el.innerHTML = `
       <table class="table table-dark table-sm table-hover mb-0">
         <thead>
-          <tr><th>Estado</th><th>Nombre</th><th>URL</th><th>Tipo</th><th>Acciones</th></tr>
+          <tr><th>Conexión</th><th>Nombre</th><th>URL</th><th>Tipo</th><th>Acciones</th></tr>
         </thead>
         <tbody>
           ${cameras.map(cam => `
             <tr>
-              <td>
+              <td id="cam-status-${cam.id}">
                 <span class="cam-status ${cam.activo ? 'online' : 'offline'}"></span>
-                <small class="ms-1 text-muted">${cam.activo ? 'Activa' : 'Inactiva'}</small>
+                <small class="ms-1 text-muted">${cam.activo ? 'Verificando...' : 'Inactiva'}</small>
               </td>
               <td class="fw-semibold">${cam.nombre}</td>
               <td class="text-muted small text-truncate" style="max-width:200px">${cam.url}</td>
@@ -330,6 +338,22 @@ const SettingsPage = (() => {
         </tbody>
       </table>
     `;
+
+    // Poll real connection status for active cameras
+    cameras.filter(c => c.activo).forEach(cam => {
+      Api.getCameraStatus(cam.id).then(s => {
+        const cell = document.getElementById(`cam-status-${cam.id}`);
+        if (!cell) return;
+        if (s.connected) {
+          cell.innerHTML = `<span class="cam-status online"></span><small class="ms-1 text-success">Conectada</small>`;
+        } else {
+          cell.innerHTML = `<span class="cam-status offline"></span><small class="ms-1 text-danger">Sin señal</small>`;
+        }
+      }).catch(() => {
+        const cell = document.getElementById(`cam-status-${cam.id}`);
+        if (cell) cell.innerHTML = `<span class="cam-status offline"></span><small class="ms-1 text-muted">Error</small>`;
+      });
+    });
   }
 
   function setupListeners() {
@@ -366,10 +390,41 @@ const SettingsPage = (() => {
       document.getElementById('cameraModalTitle').textContent = 'Agregar Cámara';
       document.getElementById('cameraForm').reset();
       document.getElementById('camActivo').checked = true;
+      document.getElementById('camTestResult').innerHTML = '';
       new bootstrap.Modal(document.getElementById('cameraModal')).show();
     });
 
     document.getElementById('btnSaveCamera').addEventListener('click', saveCamera);
+
+    document.getElementById('btnTestCamUrl').addEventListener('click', async () => {
+      const url = document.getElementById('camUrl').value.trim();
+      const resultEl = document.getElementById('camTestResult');
+      if (!url) {
+        resultEl.innerHTML = '<div class="alert alert-warning py-1 small">Ingresa una URL primero</div>';
+        return;
+      }
+      const btn = document.getElementById('btnTestCamUrl');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Probando (hasta 8s)...';
+      resultEl.innerHTML = '';
+      try {
+        const r = await Api.testCameraUrl(url);
+        if (r.opencv_ok) {
+          resultEl.innerHTML = `<div class="alert alert-success py-1 small"><i class="bi bi-check-circle me-1"></i>${r.suggestion}</div>`;
+        } else if (r.http_ok === false) {
+          resultEl.innerHTML = `<div class="alert alert-danger py-1 small"><i class="bi bi-x-circle me-1"></i><strong>Sin respuesta HTTP.</strong><br>${r.suggestion || ''}</div>`;
+        } else if (r.http_ok === true) {
+          resultEl.innerHTML = `<div class="alert alert-warning py-1 small"><i class="bi bi-exclamation-triangle me-1"></i><strong>Servidor responde pero OpenCV no lee el video.</strong><br>${r.suggestion || ''}</div>`;
+        } else {
+          resultEl.innerHTML = `<div class="alert alert-danger py-1 small"><i class="bi bi-x-circle me-1"></i>No se pudo conectar. ${r.suggestion || ''}</div>`;
+        }
+      } catch (e) {
+        resultEl.innerHTML = `<div class="alert alert-danger py-1 small">${e.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-wifi me-1"></i>Probar URL';
+      }
+    });
 
     // Password
     document.getElementById('btnChangePassword').addEventListener('click', changePassword);

@@ -3,8 +3,12 @@
  * Auto-attaches JWT, handles 401 redirect
  */
 
-const API_BASE = 'http://localhost:8000/api';
-const WS_BASE  = 'ws://localhost:8000';
+// Dynamic base URLs — work on localhost AND via ngrok/any proxy
+const _host    = window.location.hostname;
+const _port    = window.location.port ? `:${window.location.port}` : '';
+const _isHttps = window.location.protocol === 'https:';
+const API_BASE = `${window.location.protocol}//${_host}${_port}/api`;
+const WS_BASE  = `${_isHttps ? 'wss' : 'ws'}://${_host}${_port}`;
 
 // ── Timezone helpers ──────────────────────────────────────────────────────────
 function getTimezone() {
@@ -144,6 +148,8 @@ const Api = (() => {
     createCamera: (data) => request('POST', '/settings/cameras', data),
     updateCamera: (id, data) => request('PUT', `/settings/cameras/${id}`, data),
     deleteCamera: (id) => request('DELETE', `/settings/cameras/${id}`),
+    getCameraStatus: (id) => request('GET', `/settings/cameras/${id}/status`),
+    testCameraUrl: (url) => request('POST', '/settings/cameras/test-url', { url }),
 
     // Camera
     startCamera: (id) => request('POST', `/cameras/${id}/start`),
