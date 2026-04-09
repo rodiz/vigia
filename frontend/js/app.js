@@ -179,7 +179,7 @@ const App = (() => {
     content.innerHTML = `
       <div class="d-flex align-items-center justify-content-between mb-4">
         <h4 class="mb-0 fw-bold"><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h4>
-        <span class="pulse-dot me-1"></span><small class="text-muted">En vivo</small>
+        <span class="d-flex align-items-center gap-2"><span class="pulse-dot"></span><small class="text-muted">En vivo</small></span>
       </div>
 
       <!-- Stats cards -->

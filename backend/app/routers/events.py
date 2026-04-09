@@ -2,7 +2,7 @@ import csv
 import io
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -18,6 +18,14 @@ from .. import models, schemas
 router = APIRouter(prefix="/api/events", tags=["events"])
 
 BOGOTA_TZ = ZoneInfo("America/Bogota")
+UTC_TZ    = ZoneInfo("UTC")
+
+
+def _bogota_date_to_utc_range(d: date):
+    """Return (start_utc, end_utc) naive datetimes covering the full local date in Bogotá."""
+    start = datetime(d.year, d.month, d.day, 0, 0, 0, tzinfo=BOGOTA_TZ).astimezone(UTC_TZ).replace(tzinfo=None)
+    end   = datetime(d.year, d.month, d.day, 23, 59, 59, 999999, tzinfo=BOGOTA_TZ).astimezone(UTC_TZ).replace(tzinfo=None)
+    return start, end
 
 
 @router.get("/", response_model=list[schemas.AccessLogResponse])
@@ -42,9 +50,11 @@ def list_events(
     if resident_id:
         q = q.filter(models.AccessLog.resident_id == resident_id)
     if fecha_inicio:
-        q = q.filter(models.AccessLog.timestamp >= datetime.combine(fecha_inicio, datetime.min.time()))
+        start_utc, _ = _bogota_date_to_utc_range(fecha_inicio)
+        q = q.filter(models.AccessLog.timestamp >= start_utc)
     if fecha_fin:
-        q = q.filter(models.AccessLog.timestamp <= datetime.combine(fecha_fin, datetime.max.time()))
+        _, end_utc = _bogota_date_to_utc_range(fecha_fin)
+        q = q.filter(models.AccessLog.timestamp <= end_utc)
 
     if search:
         # Join visitor and resident for name search
@@ -67,9 +77,13 @@ def get_stats(
     db: Session = Depends(get_db),
     _=Depends(get_current_user),
 ):
-    now = datetime.now(BOGOTA_TZ).replace(tzinfo=None)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    now_bogota  = datetime.now(BOGOTA_TZ)
+    today       = now_bogota.date()
+    month_first = today.replace(day=1)
+
+    # Convert Bogotá day boundaries to UTC (DB stores UTC via func.now())
+    today_start, _ = _bogota_date_to_utc_range(today)
+    month_start, _ = _bogota_date_to_utc_range(month_first)
 
     accesos_hoy = db.query(func.count(models.AccessLog.id)).filter(
         models.AccessLog.timestamp >= today_start
@@ -170,9 +184,11 @@ def export_csv(
 ):
     q = db.query(models.AccessLog).order_by(models.AccessLog.timestamp.desc())
     if fecha_inicio:
-        q = q.filter(models.AccessLog.timestamp >= datetime.combine(fecha_inicio, datetime.min.time()))
+        start_utc, _ = _bogota_date_to_utc_range(fecha_inicio)
+        q = q.filter(models.AccessLog.timestamp >= start_utc)
     if fecha_fin:
-        q = q.filter(models.AccessLog.timestamp <= datetime.combine(fecha_fin, datetime.max.time()))
+        _, end_utc = _bogota_date_to_utc_range(fecha_fin)
+        q = q.filter(models.AccessLog.timestamp <= end_utc)
 
     logs = q.limit(5000).all()
 

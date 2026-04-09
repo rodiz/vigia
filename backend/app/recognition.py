@@ -4,8 +4,14 @@ import logging
 import os
 import threading
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
+
+# Suppress NNPACK "Unsupported hardware" warning from PyTorch/YOLO
+# (fires on CPUs without AVX2; harmless — PyTorch falls back automatically)
+warnings.filterwarnings("ignore", message=".*NNPACK.*")
+os.environ.setdefault("TORCH_CPP_LOG_LEVEL", "ERROR")
 
 import cv2
 import numpy as np

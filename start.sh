@@ -11,6 +11,7 @@ if [ -n "$PID" ]; then
 fi
 
 source venv/bin/activate
+export NNPACK_DISABLE=1  # Silencia advertencia de hardware no compatible
 echo "Iniciando VigIA en http://localhost:8000/app ..."
 echo "(Ctrl+C para detener)"
 echo ""
